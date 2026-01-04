@@ -16,15 +16,16 @@ export class WebSocketHandler {
 
   setupConnectionHandlers() {
     this.wss.on('connection', (ws) => {
-      console.log('New WebSocket connection');
+      console.log('✅ New WebSocket connection established');
 
       ws.on('message', async (data) => {
         try {
           const message = JSON.parse(data.toString());
-          console.log('Received:', message.type);
+          console.log('📨 Received:', message.type, message.payload?.username || '');
 
           switch (message.type) {
             case 'JOIN_GAME':
+              console.log(`🎮 Player joining: ${message.payload?.username}`);
               await handleJoinGame(ws, message, this.gameService, this.matchmakingService);
               break;
             case 'MAKE_MOVE':
@@ -66,9 +67,14 @@ export class WebSocketHandler {
         if (game && game.status === 'active') {
           // Handle disconnection with reconnection service
           this.reconnectionService.handleDisconnect(ws.username, game);
+        } else {
+          // If no active game, check if player is in matchmaking
+          // Don't remove from matchmaking - let the timer complete
+          // Only remove connection if player already has a game or is not waiting
+          if (!store.waitingPlayer || store.waitingPlayer.username !== ws.username) {
+            store.removeConnection(ws.username);
+          }
         }
-        // Remove connection but keep in store for potential reconnection
-        store.removeConnection(ws.username);
       }
     }
   }

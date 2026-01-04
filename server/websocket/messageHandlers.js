@@ -15,13 +15,37 @@ export async function handleJoinGame(ws, message, gameService, matchmakingServic
   // Check for existing active game
   const existingGame = store.getGameByPlayer(username);
   if (existingGame && existingGame.status === 'active') {
-    gameService.broadcastGameUpdate(existingGame);
+    // Update WebSocket reference in game
+    if (existingGame.player1 && existingGame.player1.username === username) {
+      existingGame.player1.ws = ws;
+    } else if (existingGame.player2 && existingGame.player2.username === username) {
+      existingGame.player2.ws = ws;
+    }
+    
+    const gameState = existingGame.getState();
     send(ws, 'GAME_FOUND', { 
       gameId: existingGame.id,
       message: 'Reconnecting to existing game',
-      gameState: existingGame.getState()
+      gameState: {
+        ...gameState,
+        yourPlayer: existingGame.player1?.username === username ? 1 : 2,
+        opponent: existingGame.player1?.username === username 
+          ? (existingGame.player2?.username || 'Bot')
+          : (existingGame.player1?.username || 'Bot')
+      }
     });
+    
+    // Broadcast current game state
+    gameService.broadcastGameUpdate(existingGame);
     return;
+  }
+
+  // If player is already in matchmaking, update their WebSocket connection
+  const waitingPlayer = store.waitingPlayer;
+  if (waitingPlayer && waitingPlayer.username === username) {
+    console.log(`Player ${username} reconnected during matchmaking, updating WebSocket...`);
+    // Update the waiting player's WebSocket to the new connection
+    waitingPlayer.ws = ws;
   }
 
   // Start matchmaking
@@ -48,12 +72,16 @@ export async function handleMakeMove(ws, message, gameService) {
     return;
   }
 
+  console.log(`🎯 Processing move: player=${ws.username}, column=${column}, gameId=${game.id}`);
   const result = gameService.processMove(game.id, ws.username, column);
   
   if (!result.success) {
+    console.error(`❌ Move failed: ${result.error}`);
     send(ws, 'ERROR', { message: result.error });
     return;
   }
+
+  console.log(`✅ Move successful: ${result.success}, win=${result.win}, draw=${result.draw}, nextPlayer=${result.nextPlayer || game.currentPlayer}`);
 
   if (game.isBotGame && game.status === 'active' && game.currentPlayer === 2 && game.bot) {
     setTimeout(async () => {

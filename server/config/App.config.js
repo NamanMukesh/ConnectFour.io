@@ -1,6 +1,6 @@
 // Application configuration
 export const config = {
-  port: process.env.PORT || 6000,
+  port: process.env.PORT || 3001,
   matchmakingTimeout: 10000, // 10 seconds
   reconnectionTimeout: 30000, // 30 seconds
   boardRows: 6,

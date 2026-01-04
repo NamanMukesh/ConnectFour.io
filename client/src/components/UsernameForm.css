@@ -1,0 +1,42 @@
+.username-form {
+  display: flex;
+  gap: 10px;
+  margin: 30px 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.username-input {
+  padding: 15px 20px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  font-size: 16px;
+  min-width: 200px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.username-input:focus {
+  border-color: #667eea;
+}
+
+.username-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.username-button:hover {
+  background: #5568d3;
+}
+
+.username-button:active {
+  transform: scale(0.98);
+}
+

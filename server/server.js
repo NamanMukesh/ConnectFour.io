@@ -60,7 +60,9 @@ async function startServer() {
     setupWebSocket(server);
 
     server.listen(config.port, () => {
-      console.log(`Server running on http://localhost:${config.port}`);
+      console.log(`🚀 Server running on http://localhost:${config.port}`);
+      console.log(`📡 WebSocket endpoint: ws://localhost:${config.port}/ws`);
+      console.log(`🔍 Waiting for client connections...`);
     });
   } catch (err) {
     console.error("Server startup failed:", err.message);

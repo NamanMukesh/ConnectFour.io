@@ -162,9 +162,10 @@ export class Game {
   }
 
   getState() {
+    // Return a deep copy of the board to prevent mutation
     return {
       id: this.id,
-      board: this.board,
+      board: this.board.map(row => [...row]), // Deep copy each row
       currentPlayer: this.currentPlayer,
       status: this.status,
       winner: this.winner,

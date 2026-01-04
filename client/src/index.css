@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@import "tailwindcss";
+
+* {
+  font-family: "Outfit", sans-serif;
+}
+
+@theme {
+  /* Primary Colors - 3 shades */
+  --color-primary-400: #8195ff;
+  --color-primary-500: #667eea;
+  --color-primary-600: #5568d3;
+
+  /* Secondary Colors - 3 shades */
+  --color-secondary-400: #c084fc;
+  --color-secondary-500: #a855f7;
+  --color-secondary-600: #9333ea;
+
+  /* Accent Colors - 3 shades */
+  --color-accent-400: #f87171;
+  --color-accent-500: #ef4444;
+  --color-accent-600: #dc2626;
+
+  /* Yellow Colors - 3 shades */
+  --color-yellow-400: #facc15;
+  --color-yellow-500: #eab308;
+  --color-yellow-600: #ca8a04;
+
+  /* Success Color - 1 shade */
+  --color-success-500: #10b981;
+
+  /* Error Color - 1 shade */
+  --color-error-500: #ef4444;
+
+  /* Neutral Colors - 3 shades */
+  --color-neutral-200: #e5e5e5;
+  --color-neutral-500: #737373;
+  --color-neutral-900: #171717;
+}
+
+body {
+  @apply bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 min-h-screen m-0 p-0;
+}
+
+#root {
+  @apply min-h-screen flex items-center justify-center p-4;
+}

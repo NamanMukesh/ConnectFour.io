@@ -54,19 +54,43 @@ export class GameService {
 
   broadcastGameUpdate(game) {
     const state = game.getState();
+    console.log(`📤 Broadcasting GAME_UPDATE for game ${game.id}, status: ${state.status}, currentPlayer: ${state.currentPlayer}`);
     
-    if (game.player1 && game.player1.ws && game.player1.ws.readyState === 1) {
-      this.wsHandler.send(game.player1.ws, 'GAME_UPDATE', {
+    // Try to get fresh WebSocket from store if current one is closed
+    let player1Ws = game.player1?.ws;
+    if (game.player1 && (!player1Ws || player1Ws.readyState !== 1)) {
+      const storedWs = store.getConnection(game.player1.username);
+      if (storedWs && storedWs.readyState === 1) {
+        player1Ws = storedWs;
+        game.player1.ws = storedWs; // Update game's WebSocket reference
+        console.log(`   → Using stored WebSocket for player1`);
+      }
+    }
+    
+    if (game.player1 && player1Ws && player1Ws.readyState === 1) {
+      const player1State = {
         ...state,
-        yourPlayer: 1
-      });
+        yourPlayer: 1,
+        opponent: game.player2?.username || 'Bot'
+      };
+      console.log(`   → Sending to player1 (${game.player1.username})`);
+      this.wsHandler.send(player1Ws, 'GAME_UPDATE', player1State);
+    } else {
+      console.log(`   → Player1 WebSocket not available (readyState: ${game.player1?.ws?.readyState || 'null'})`);
     }
 
     if (game.player2 && game.player2.ws && game.player2.ws.readyState === 1) {
-      this.wsHandler.send(game.player2.ws, 'GAME_UPDATE', {
+      const player2State = {
         ...state,
-        yourPlayer: 2
-      });
+        yourPlayer: 2,
+        opponent: game.player1?.username || 'Bot'
+      };
+      console.log(`   → Sending to player2 (${game.player2.username})`);
+      this.wsHandler.send(game.player2.ws, 'GAME_UPDATE', player2State);
+    } else if (game.player2 && game.player2.username === 'Bot') {
+      // Bot doesn't need WebSocket
+    } else {
+      console.log(`   → Player2 WebSocket not available`);
     }
   }
 

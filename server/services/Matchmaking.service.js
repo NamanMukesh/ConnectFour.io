@@ -1,7 +1,6 @@
-// Matchmaking
+// services/Matchmaking.service.js
 import { store } from './Store.service.js';
 import { config } from '../config/App.config.js';
-import { GameService } from '../game/GameService.js';
 import { Bot } from '../bot/Bot.js';
 
 export class MatchmakingService {
@@ -12,104 +11,132 @@ export class MatchmakingService {
   }
 
   addPlayer(ws, username) {
+    // Update WS if same user reconnects while waiting
+    const waitingPlayer = store.waitingPlayer;
+    if (waitingPlayer && waitingPlayer.username === username) {
+      waitingPlayer.ws = ws;
+      store.addConnection(username, ws);
+
+      this.wsHandler.send(ws, 'WAITING_FOR_OPPONENT', {
+        message: 'Waiting for an opponent...',
+        timeout: config.matchmakingTimeout
+      });
+      return;
+    }
+
     this.clearTimer(username);
 
+    /* ================= PvP MATCH ================= */
     if (store.waitingPlayer && store.waitingPlayer.username !== username) {
-      const player1 = store.waitingPlayer;
+      const p1 = store.waitingPlayer;
       store.clearWaitingPlayer();
-      this.clearTimer(player1.username);
+      this.clearTimer(p1.username);
 
-      // Create PvP
       const game = this.gameService.createGame(
-        { username: player1.username, ws: player1.ws },
+        { username: p1.username, ws: p1.ws },
         { username, ws },
         false
       );
 
-      // GAME STARTED
-      this.wsHandler.send(player1.ws, 'GAME_STARTED', {
+      const gameState = game.getState();
+
+      // Player 1
+      this.wsHandler.send(p1.ws, 'GAME_STARTED', {
         gameId: game.id,
-        player: 1,
         opponent: username,
         isBotGame: false,
-        gameState: game.getState()
+        gameState: { ...gameState, yourPlayer: 1 }
       });
 
+      // Player 2
       this.wsHandler.send(ws, 'GAME_STARTED', {
         gameId: game.id,
-        player: 2,
-        opponent: player1.username,
+        opponent: p1.username,
         isBotGame: false,
-        gameState: game.getState()
+        gameState: { ...gameState, yourPlayer: 2 }
       });
 
-      return { matched: true, game };
+      // 🔥 Initial state sync
+      this.wsHandler.broadcast(game, 'GAME_UPDATE', gameState);
+
+      return;
     }
 
-    // No waiting player, add to queue
+    /* ================= WAITING QUEUE ================= */
     store.setWaitingPlayer(ws, username);
 
-    // Set timeout for bot match
-    const timer = setTimeout(() => {
-      this.startBotGame(ws, username);
-    }, config.matchmakingTimeout);
-
-    this.matchmakingTimers.set(username, timer);
-
-    // WAITING FOR OPPONENT
     this.wsHandler.send(ws, 'WAITING_FOR_OPPONENT', {
       message: 'Waiting for an opponent...',
       timeout: config.matchmakingTimeout
     });
 
-    return { matched: false };
+    const timer = setTimeout(() => {
+      this.startBotGame(username);
+    }, config.matchmakingTimeout);
+
+    this.matchmakingTimers.set(username, timer);
   }
 
-  // Start game with bot
-  startBotGame(ws, username) {
-    // Check if player is still waiting
-    if (store.waitingPlayer && store.waitingPlayer.username === username) {
+  /* ================= BOT GAME ================= */
+  startBotGame(username) {
+    const waitingPlayer = store.waitingPlayer;
+
+    if (!waitingPlayer || waitingPlayer.username !== username) {
+      return;
+    }
+
+    const ws = store.getConnection(username) || waitingPlayer.ws;
+
+    if (!ws || ws.readyState !== 1) {
       store.clearWaitingPlayer();
       this.clearTimer(username);
-
-      // Create bot game
-      const bot = new Bot();
-      const game = this.gameService.createGame(
-        { username, ws },
-        { username: 'Bot', ws: null },
-        true
-      );
-
-      // Storing bot instance in game
-      game.bot = bot;
-      game.bot.setGame(game);
-
-      this.wsHandler.send(ws, 'GAME_STARTED', {
-        gameId: game.id,
-        player: 1,
-        opponent: 'Bot',
-        isBotGame: true,
-        gameState: game.getState()
-      });
-
-      return game;
+      return;
     }
-    return null;
-  }
 
-  removePlayer(username) {
-    if (store.waitingPlayer && store.waitingPlayer.username === username) {
-      store.clearWaitingPlayer();
-    }
+    store.clearWaitingPlayer();
     this.clearTimer(username);
+
+    const bot = new Bot();
+    const game = this.gameService.createGame(
+      { username, ws },
+      { username: 'Bot', ws: null },
+      true
+    );
+
+    game.bot = bot;
+    bot.setGame(game);
+
+    const gameState = game.getState();
+
+    /* ✅ GAME_STARTED (UI transition) */
+    this.wsHandler.send(ws, 'GAME_STARTED', {
+      gameId: game.id,
+      opponent: 'Bot',
+      isBotGame: true,
+      gameState: { ...gameState, yourPlayer: 1 }
+    });
+
+    /* ✅ GAME_UPDATE (board + turn render) */
+    this.wsHandler.send(ws, 'GAME_UPDATE', {
+      ...gameState,
+      yourPlayer: 1
+    });
+
+    console.log(`✅ Bot game started for ${username} (gameId=${game.id})`);
   }
 
-  // Clear matchmaking timer
   clearTimer(username) {
     const timer = this.matchmakingTimers.get(username);
     if (timer) {
       clearTimeout(timer);
       this.matchmakingTimers.delete(username);
     }
+  }
+
+  removePlayer(username) {
+    if (store.waitingPlayer?.username === username) {
+      store.clearWaitingPlayer();
+    }
+    this.clearTimer(username);
   }
 }
