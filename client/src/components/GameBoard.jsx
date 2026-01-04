@@ -81,6 +81,7 @@ function GameBoard({
     wsRef.current = ws
   
     ws.onopen = () => {
+      console.log('✅ WebSocket connected')
       ws.send(JSON.stringify({
         type: 'JOIN_GAME',
         payload: { username: usernameRef.current }
@@ -89,7 +90,8 @@ function GameBoard({
   
     ws.onmessage = (event) => {
       try {
-        handleMessage(JSON.parse(event.data))
+        const msg = JSON.parse(event.data)
+        handleMessage(msg)
       } catch (e) {
         console.error('WS parse error', e)
       }
@@ -99,17 +101,22 @@ function GameBoard({
       onErrorRef.current('WebSocket error')
     }
   
-    ws.onclose = () => {
-      if (shouldReconnectRef.current) {
-        setTimeout(() => window.location.reload(), 3000)
+    ws.onclose = (event) => {
+      console.log('🔌 WebSocket closed', event.code)
+      if (shouldReconnectRef.current && event.code !== 1000) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          window.location.reload()
+        }, 3000)
       }
     }
   
     return () => {
       shouldReconnectRef.current = false
-      ws.close()
+      clearTimeout(reconnectTimeoutRef.current)
+      ws.close(1000, 'Component unmounted')
     }
   }, [])
+  
   
 
   /* ================= GAME ACTIONS ================= */
