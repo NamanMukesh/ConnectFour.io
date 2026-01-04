@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import GameBoard from './components/GameBoard'
 import UsernameForm from './components/UsernameForm'
 import Leaderboard from './components/Leaderboard'
@@ -9,10 +9,12 @@ function App() {
   const [status, setStatus] = useState('idle') // idle, waiting, playing, finished
   const [message, setMessage] = useState('')
   const [leaderboard, setLeaderboard] = useState([])
+  const lastLeaderboardFetchGameIdRef = useRef(null)
+  const API_BASE = import.meta.env.VITE_API_BASE_URL
 
   const fetchLeaderboard = async () => {
     try {
-      const response = await fetch('/api/leaderboard')
+      const response = await fetch(`${API_BASE}/api/leaderboard`)
       const data = await response.json()
       if (data.success) {
         setLeaderboard(data.data)
@@ -26,7 +28,7 @@ function App() {
     // Fetch leaderboard on mount
     (async () => {
       try {
-        const response = await fetch('/api/leaderboard')
+        const response = await fetch(`${API_BASE}/api/leaderboard`)
         const data = await response.json()
         if (data.success) {
           setLeaderboard(data.data)
@@ -56,7 +58,10 @@ function App() {
         const result = state.result
         setMessage(result === 'win' ? 'You won! 🎉' : 'You lost 😢')
       }
-      fetchLeaderboard()
+      if (state.id && lastLeaderboardFetchGameIdRef.current !== state.id) {
+        lastLeaderboardFetchGameIdRef.current = state.id
+        fetchLeaderboard()
+      }
     }
   }
 
@@ -80,6 +85,7 @@ function App() {
     setStatus('idle')
     setMessage('')
     setUsername('')
+    lastLeaderboardFetchGameIdRef.current = null
   }
 
   if (!username) {
