@@ -68,7 +68,7 @@ export async function handleMakeMove(ws, message, gameService) {
   }
 }
 
-export async function handleReconnect(ws, message, gameService) {
+export async function handleReconnect(ws, message, gameService, reconnectionService) {
   const { username, gameId } = message.payload;
   
   if (!username) {
@@ -86,10 +86,16 @@ export async function handleReconnect(ws, message, gameService) {
     return;
   }
 
-  if (game.player1 && game.player1.username === username) {
-    game.player1.ws = ws;
-  } else if (game.player2 && game.player2.username === username) {
-    game.player2.ws = ws;
+  // Check if player was disconnected and handle reconnection
+  const wasDisconnected = reconnectionService.handleReconnect(username, ws);
+  
+  if (!wasDisconnected) {
+    // Normal reconnection (not from timeout)
+    if (game.player1 && game.player1.username === username) {
+      game.player1.ws = ws;
+    } else if (game.player2 && game.player2.username === username) {
+      game.player2.ws = ws;
+    }
   }
 
   gameService.broadcastGameUpdate(game);

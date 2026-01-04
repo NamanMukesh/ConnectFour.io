@@ -1,19 +1,3 @@
--- ============================================
--- Supabase Schema for Connect Four Game
--- ============================================
--- 
--- ⚠️  IMPORTANT: Run this in Supabase SQL Editor
--- 
--- Steps:
--- 1. Go to your Supabase project dashboard
--- 2. Navigate to SQL Editor (left sidebar)
--- 3. Click "New Query"
--- 4. Copy and paste this entire file
--- 5. Click "Run" or press Ctrl+Enter
---
--- DO NOT run this from application code!
--- ============================================
-
 -- Games table
 CREATE TABLE IF NOT EXISTS games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

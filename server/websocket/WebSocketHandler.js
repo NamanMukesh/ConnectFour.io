@@ -3,12 +3,14 @@ import { store } from '../services/Store.service.js';
 import { handleJoinGame, handleMakeMove, handleReconnect } from './messageHandlers.js';
 import { GameService } from '../game/GameService.js';
 import { MatchmakingService } from '../services/Matchmaking.service.js';
+import { ReconnectionService } from '../services/Reconnection.service.js';
 
 export class WebSocketHandler {
   constructor(wss) {
     this.wss = wss;
     this.gameService = new GameService(this);
     this.matchmakingService = new MatchmakingService(this.gameService, this);
+    this.reconnectionService = new ReconnectionService(this.gameService, this);
     this.setupConnectionHandlers();
   }
 
@@ -29,7 +31,7 @@ export class WebSocketHandler {
               await handleMakeMove(ws, message, this.gameService);
               break;
             case 'RECONNECT':
-              await handleReconnect(ws, message, this.gameService);
+              await handleReconnect(ws, message, this.gameService, this.reconnectionService);
               break;
             case 'PING':
               this.send(ws, 'PONG', { timestamp: Date.now() });
@@ -59,7 +61,14 @@ export class WebSocketHandler {
     if (ws.username) {
       const connection = store.getConnection(ws.username);
       if (connection === ws) {
-        ws.disconnectedAt = Date.now();
+        // Get player's active game
+        const game = store.getGameByPlayer(ws.username);
+        if (game && game.status === 'active') {
+          // Handle disconnection with reconnection service
+          this.reconnectionService.handleDisconnect(ws.username, game);
+        }
+        // Remove connection but keep in store for potential reconnection
+        store.removeConnection(ws.username);
       }
     }
   }
