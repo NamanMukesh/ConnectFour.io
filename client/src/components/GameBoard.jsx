@@ -76,55 +76,41 @@ function GameBoard({
 
   useEffect(() => {
     shouldReconnectRef.current = true
-
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const host = window.location.hostname
-    const port = import.meta.env.DEV ? '3001' : window.location.port
-    const wsUrl = `${protocol}://${host}:${port}/ws`
-
-    console.log('🔌 Connecting WebSocket:', wsUrl)
-
-    const ws = new WebSocket(wsUrl)
+  
+    const ws = new WebSocket(import.meta.env.VITE_WS_URL)
     wsRef.current = ws
-
+  
     ws.onopen = () => {
-      console.log('✅ WebSocket connected')
-
       ws.send(JSON.stringify({
         type: 'JOIN_GAME',
         payload: { username: usernameRef.current }
       }))
     }
-
-    ws.onmessage = event => {
+  
+    ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data)
-        handleMessage(msg)
-      } catch (err) {
-        console.error('Invalid WS message', err)
+        handleMessage(JSON.parse(event.data))
+      } catch (e) {
+        console.error('WS parse error', e)
       }
     }
-
+  
     ws.onerror = () => {
       onErrorRef.current('WebSocket error')
     }
-
-    ws.onclose = event => {
-      console.log('🔌 WebSocket closed', event.code)
-
-      if (shouldReconnectRef.current && event.code !== 1000) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-          window.location.reload()
-        }, 3000)
+  
+    ws.onclose = () => {
+      if (shouldReconnectRef.current) {
+        setTimeout(() => window.location.reload(), 3000)
       }
     }
-
+  
     return () => {
       shouldReconnectRef.current = false
-      clearTimeout(reconnectTimeoutRef.current)
-      ws.close(1000, 'Component unmounted')
+      ws.close()
     }
-  }, []) // 🔥 RUNS ONCE ONLY
+  }, [])
+  
 
   /* ================= GAME ACTIONS ================= */
 
