@@ -2,11 +2,13 @@
 import { store } from '../services/Store.service.js';
 import { handleJoinGame, handleMakeMove, handleReconnect } from './messageHandlers.js';
 import { GameService } from '../game/GameService.js';
+import { MatchmakingService } from '../services/Matchmaking.service.js';
 
 export class WebSocketHandler {
   constructor(wss) {
     this.wss = wss;
     this.gameService = new GameService(this);
+    this.matchmakingService = new MatchmakingService(this.gameService, this);
     this.setupConnectionHandlers();
   }
 
@@ -21,7 +23,7 @@ export class WebSocketHandler {
 
           switch (message.type) {
             case 'JOIN_GAME':
-              await handleJoinGame(ws, message, this.gameService);
+              await handleJoinGame(ws, message, this.gameService, this.matchmakingService);
               break;
             case 'MAKE_MOVE':
               await handleMakeMove(ws, message, this.gameService);

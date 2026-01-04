@@ -1,6 +1,6 @@
 // Game logic - Connect Four
 import { v4 as uuidv4 } from 'uuid';
-import { config } from '../config/app.config.js';
+import { config } from '../config/App.config.js';
 
 export class Game {
   constructor(player1, player2 = null, isBotGame = false) {

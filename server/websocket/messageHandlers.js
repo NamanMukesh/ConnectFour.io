@@ -1,7 +1,7 @@
 // WebSocket message handlers
 import { store } from '../services/Store.service.js';
 
-export async function handleJoinGame(ws, message, gameService) {
+export async function handleJoinGame(ws, message, gameService, matchmakingService) {
   const { username } = message.payload;
   
   if (!username || username.trim() === '') {
@@ -12,6 +12,7 @@ export async function handleJoinGame(ws, message, gameService) {
   ws.username = username;
   store.addConnection(username, ws);
 
+  // Check for existing active game
   const existingGame = store.getGameByPlayer(username);
   if (existingGame && existingGame.status === 'active') {
     gameService.broadcastGameUpdate(existingGame);
@@ -23,10 +24,8 @@ export async function handleJoinGame(ws, message, gameService) {
     return;
   }
 
-  send(ws, 'WAITING_FOR_OPPONENT', { 
-    message: 'Waiting for an opponent...',
-    timeout: 10000 
-  });
+  // Start matchmaking
+  matchmakingService.addPlayer(ws, username);
 }
 
 export async function handleMakeMove(ws, message, gameService) {
@@ -56,6 +55,17 @@ export async function handleMakeMove(ws, message, gameService) {
     return;
   }
 
+  if (game.isBotGame && game.status === 'active' && game.currentPlayer === 2 && game.bot) {
+    setTimeout(async () => {
+      const botResult = game.bot.makeMove();
+      if (botResult && botResult.success) {
+        gameService.broadcastGameUpdate(game);
+        if (botResult.win || botResult.draw) {
+          await gameService.handleGameEnd(game, botResult);
+        }
+      }
+    }, 500);
+  }
 }
 
 export async function handleReconnect(ws, message, gameService) {

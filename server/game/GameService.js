@@ -1,6 +1,8 @@
 // Game Operations
 import { Game } from './Game.js';
 import { store } from '../services/Store.service.js';
+import { GameModel } from '../models/Game.model.js';
+import { LeaderboardModel } from '../models/Leaderboard.model.js';
 
 export class GameService {
   constructor(wsHandler) {
@@ -41,7 +43,10 @@ export class GameService {
     this.broadcastGameUpdate(game);
 
     if (result.win || result.draw) {
-      this.handleGameEnd(game, result);
+      // Handle game end asynchronously (don't block the response)
+      this.handleGameEnd(game, result).catch(err => {
+        console.error('Error in handleGameEnd:', err);
+      });
     }
 
     return result;
@@ -66,7 +71,7 @@ export class GameService {
   }
 
   // Game end
-  handleGameEnd(game, result) {
+  async handleGameEnd(game, result) {
     const state = game.getState();
 
     // Send game over message
@@ -84,6 +89,27 @@ export class GameService {
         result: result.win ? (result.winner === 'player2' ? 'win' : 'loss') : 'draw',
         winCells: result.winCells || []
       });
+    }
+
+    // Save to database
+    try {
+      await GameModel.saveGame(game);
+      
+      // Update leaderboard
+      if (result.win) {
+        const winner = result.winner === 'player1' ? game.player1?.username : game.player2?.username;
+        const loser = result.winner === 'player1' ? game.player2?.username : game.player1?.username;
+        await LeaderboardModel.updateLeaderboard(winner, loser, false);
+      } else if (result.draw) {
+        await LeaderboardModel.updateLeaderboard(
+          game.player1?.username,
+          game.player2?.username,
+          true
+        );
+      }
+    } catch (error) {
+      console.error('Error saving game to database:', error);
+      // Don't throw - game already ended, just log the error
     }
   }
 

@@ -8,7 +8,7 @@ export function setupWebSocket(server) {
     path: '/ws'
   });
 
-  console.log('🔌 WebSocket server ready');
+  console.log('WebSocket server ready');
 
   // Initializing
   new WebSocketHandler(wss);

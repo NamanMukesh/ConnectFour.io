@@ -1,14 +1,17 @@
 import express from "express";
+import "dotenv/config.js";  
 import http from "http";
-import { config } from "./config/config.js";
+import cors from "cors";
+import { config } from "./config/App.config.js";
 import { setupWebSocket } from "./websocket/websocket.js";
+import { testConnection } from "./config/Db.config.js";
+import { getLeaderboard, getPlayerStats } from "./controllers/Leaderboard.controller.js";
 
 const app = express();
 const server = http.createServer(app);
 
 // Middleware
 app.use(express.json());
-app.use(express.static("../client/public"));
 
 const allowedOrigins = [
   "http://localhost:5173", // Vite
@@ -39,16 +42,33 @@ app.get("/", (req, res) => {
     message: "Connect Four API",
     endpoints: {
       health: "/health",
-      leaderboard: "/api/leaderboard"
+      leaderboard: "/api/leaderboard",
+      playerStats: "/api/leaderboard/:username"
     }
   });
 });
 
-setupWebSocket(server);
+// API Routes
+app.get("/api/leaderboard", getLeaderboard);
+app.get("/api/leaderboard/:username", getPlayerStats);
 
-server.listen(config.port, () => {
-  console.log(`🚀 Server running on http://localhost:${config.port}`);
-});
+
+async function startServer() {
+  try {
+    await testConnection();
+
+    setupWebSocket(server);
+
+    server.listen(config.port, () => {
+      console.log(`Server running on http://localhost:${config.port}`);
+    });
+  } catch (err) {
+    console.error("Server startup failed:", err.message);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export { server, app };
 
