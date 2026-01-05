@@ -80,17 +80,64 @@ npm run dev
 Open the frontend at `http://localhost:5173`.
 
 ---
+## How to Play
+
+- Enter a username
+- Wait for another player or bot
+- Click a column to drop your disc
+- First to connect 4 in a row wins (horizontal, vertical, diagonal)
+- Leaderboard updates automatically
+
+---
+
+## Kafka Analytics
+
+Kafka is used to simulate real-world event-driven analytics.
+
+The backend emits Kafka events when:
+
+A game starts
+A move is made
+A game ends (win/draw)
+
+Example event:
+```bash
+{
+  "type": "GAME_ENDED",
+  "payload": {
+    "gameId": "uuid",
+    "winner": "player1",
+    "durationMs": 84231
+  },
+  "timestamp": 1700000000000
+}
+```
+---
+
+### What can be tracked?
+
+Using a Kafka consumer you can calculate:
+
+Average game duration
+Games per hour/day
+Win-rate per player
+Bot vs human stats
+Most frequent winners
+
+---
 
 ## Project structure (high level)
 
 ```
 ConnectFour.io/
 ├── server/
+│   ├── analytics/         # Kafka Analytics
 │   ├── bot/               # Bot AI logic
-│   ├── config/            # App & DB configuration
+│   ├── config/            # Configurations
 │   ├── controllers/       # REST controllers
 │   ├── database/          # Supabase SQL schema
 │   ├── game/              # Core game logic
+│   ├── kafka/             # Kafka Files
 │   ├── models/            # DB models
 │   ├── services/          # Matchmaking & game services
 │   ├── websocket/         # WebSocket handlers
