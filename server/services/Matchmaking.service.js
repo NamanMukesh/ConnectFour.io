@@ -26,7 +26,7 @@ export class MatchmakingService {
 
     this.clearTimer(username);
 
-    /* ================= PvP MATCH ================= */
+    // PvP MATCH
     if (store.waitingPlayer && store.waitingPlayer.username !== username) {
       const p1 = store.waitingPlayer;
       store.clearWaitingPlayer();
@@ -56,13 +56,13 @@ export class MatchmakingService {
         gameState: { ...gameState, yourPlayer: 2 }
       });
 
-      // 🔥 Initial state sync
+      // Initial state sync
       this.wsHandler.broadcast(game, 'GAME_UPDATE', gameState);
 
       return;
     }
 
-    /* ================= WAITING QUEUE ================= */
+    //WAITING QUEUE
     store.setWaitingPlayer(ws, username);
 
     this.wsHandler.send(ws, 'WAITING_FOR_OPPONENT', {
@@ -77,7 +77,7 @@ export class MatchmakingService {
     this.matchmakingTimers.set(username, timer);
   }
 
-  /* ================= BOT GAME ================= */
+  //BOT GAME
   startBotGame(username) {
     const waitingPlayer = store.waitingPlayer;
 
@@ -108,7 +108,6 @@ export class MatchmakingService {
 
     const gameState = game.getState();
 
-    /* ✅ GAME_STARTED (UI transition) */
     this.wsHandler.send(ws, 'GAME_STARTED', {
       gameId: game.id,
       opponent: 'Bot',
@@ -116,13 +115,12 @@ export class MatchmakingService {
       gameState: { ...gameState, yourPlayer: 1 }
     });
 
-    /* ✅ GAME_UPDATE (board + turn render) */
     this.wsHandler.send(ws, 'GAME_UPDATE', {
       ...gameState,
       yourPlayer: 1
     });
 
-    console.log(`✅ Bot game started for ${username} (gameId=${game.id})`);
+    console.log(`Bot game started for ${username} (gameId=${game.id})`);
   }
 
   clearTimer(username) {

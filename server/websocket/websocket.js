@@ -12,12 +12,12 @@ export function setupWebSocket(server) {
   new WebSocketHandler(wss);
 
   wss.on('error', (error) => {
-    console.error('❌ WebSocket Server Error:', error);
+    console.error('WebSocket Server Error:', error);
   });
 
   wss.on('listening', () => {
-    console.log('✅ WebSocket server ready at /ws');
-    console.log('   Waiting for connections on ws://localhost:3001/ws');
+    console.log('WebSocket server ready');
+    console.log('Waiting for connections...');
   });
 
   return wss;

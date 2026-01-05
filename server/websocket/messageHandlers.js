@@ -12,7 +12,6 @@ export async function handleJoinGame(ws, message, gameService, matchmakingServic
   ws.username = username;
   store.addConnection(username, ws);
 
-  // Check for existing active game
   const existingGame = store.getGameByPlayer(username);
   if (existingGame && existingGame.status === 'active') {
     // Update WebSocket reference in game
@@ -35,16 +34,13 @@ export async function handleJoinGame(ws, message, gameService, matchmakingServic
       }
     });
     
-    // Broadcast current game state
     gameService.broadcastGameUpdate(existingGame);
     return;
   }
 
-  // If player is already in matchmaking, update their WebSocket connection
   const waitingPlayer = store.waitingPlayer;
   if (waitingPlayer && waitingPlayer.username === username) {
     console.log(`Player ${username} reconnected during matchmaking, updating WebSocket...`);
-    // Update the waiting player's WebSocket to the new connection
     waitingPlayer.ws = ws;
   }
 
@@ -72,16 +68,16 @@ export async function handleMakeMove(ws, message, gameService) {
     return;
   }
 
-  console.log(`🎯 Processing move: player=${ws.username}, column=${column}, gameId=${game.id}`);
+  console.log(`Processing move: player=${ws.username}, column=${column}, gameId=${game.id}`);
   const result = gameService.processMove(game.id, ws.username, column);
   
   if (!result.success) {
-    console.error(`❌ Move failed: ${result.error}`);
+    console.error(`Move failed: ${result.error}`);
     send(ws, 'ERROR', { message: result.error });
     return;
   }
 
-  console.log(`✅ Move successful: ${result.success}, win=${result.win}, draw=${result.draw}, nextPlayer=${result.nextPlayer || game.currentPlayer}`);
+  console.log(`Move successful: ${result.success}, win=${result.win}, draw=${result.draw}, nextPlayer=${result.nextPlayer || game.currentPlayer}`);
 
   if (game.isBotGame && game.status === 'active' && game.currentPlayer === 2 && game.bot) {
     setTimeout(async () => {
@@ -140,7 +136,7 @@ function send(ws, type, payload) {
     try {
       ws.send(JSON.stringify({ type, payload }));
     } catch (error) {
-      console.error('❌ Error sending message:', error);
+      console.error('Error sending message:', error);
     }
   }
 }

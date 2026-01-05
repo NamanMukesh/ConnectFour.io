@@ -1,20 +1,19 @@
 import { supabase } from '../config/Db.config.js';
 
+const BOT_USERNAME = 'Bot';
+
 export class LeaderboardModel {
   static async updateLeaderboard(winner, loser = null, isDraw = false) {
     try {
+      if (winner === BOT_USERNAME) winner = null;
+      if (loser === BOT_USERNAME) loser = null;
+
       if (isDraw) {
-        if (winner) {
-          await this.incrementDraw(winner);
-        }
-        if (loser) {
-          await this.incrementDraw(loser);
-        }
+        if (winner) await this.incrementDraw(winner);
+        if (loser) await this.incrementDraw(loser);
       } else if (winner) {
         await this.incrementWin(winner);
-        if (loser) {
-          await this.incrementLoss(loser);
-        }
+        if (loser) await this.incrementLoss(loser);
       }
     } catch (error) {
       console.error('Error updating leaderboard:', error);
@@ -22,6 +21,8 @@ export class LeaderboardModel {
   }
 
   static async incrementWin(username) {
+    if (!username || username === BOT_USERNAME) return;
+
     try {
       const { data: existing } = await supabase
         .from('leaderboard')
@@ -60,6 +61,8 @@ export class LeaderboardModel {
   }
 
   static async incrementLoss(username) {
+    if (!username || username === BOT_USERNAME) return;
+
     try {
       const { data: existing } = await supabase
         .from('leaderboard')
@@ -98,6 +101,8 @@ export class LeaderboardModel {
   }
 
   static async incrementDraw(username) {
+    if (!username || username === BOT_USERNAME) return;
+
     try {
       const { data: existing } = await supabase
         .from('leaderboard')
@@ -140,6 +145,7 @@ export class LeaderboardModel {
       const { data, error } = await supabase
         .from('leaderboard')
         .select('*')
+        .neq('username', BOT_USERNAME)
         .order('games_won', { ascending: false })
         .limit(limit);
 
@@ -152,6 +158,8 @@ export class LeaderboardModel {
   }
 
   static async getPlayerStats(username) {
+    if (!username || username === BOT_USERNAME) return null;
+
     try {
       const { data, error } = await supabase
         .from('leaderboard')

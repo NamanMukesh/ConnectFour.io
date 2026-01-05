@@ -6,9 +6,12 @@ import { config } from "./config/App.config.js";
 import { setupWebSocket } from "./websocket/websocket.js";
 import { testConnection } from "./config/Db.config.js";
 import { getLeaderboard, getPlayerStats } from "./controllers/Leaderboard.controller.js";
+import { initProducer } from './kafka/producer.kafka.js';
+
 
 const app = express();
 const server = http.createServer(app);
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(express.json());
@@ -59,10 +62,16 @@ async function startServer() {
 
     setupWebSocket(server);
 
-    server.listen(config.port, () => {
-      console.log(`🚀 Server running on http://localhost:${config.port}`);
-      console.log(`📡 WebSocket endpoint: ws://localhost:${config.port}/ws`);
-      console.log(`🔍 Waiting for client connections...`);
+    try {
+      await initProducer();
+    } catch (err) {
+      console.warn('Kafka init failed, continuing without analytics');
+    }
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port: ${PORT}`);
+      console.log(`WebSocket endpoint port: ${PORT}/ws`);
+      console.log(`Waiting for client connections...`);
     });
   } catch (err) {
     console.error("Server startup failed:", err.message);

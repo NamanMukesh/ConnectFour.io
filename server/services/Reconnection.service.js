@@ -16,8 +16,6 @@ export class ReconnectionService {
     if (!game || game.status !== 'active') {
       return;
     }
-
-    // Don't forfeit bot games if bot disconnects (impossible)
     if (game.isBotGame && game.player2?.username === 'Bot') {
       return;
     }
@@ -115,7 +113,6 @@ export class ReconnectionService {
       console.error('Error saving forfeited game:', error);
     }
 
-    // Notify both players
     if (game.player1?.ws) {
       this.wsHandler.send(game.player1.ws, 'GAME_OVER', {
         ...game.getState(),
@@ -136,7 +133,7 @@ export class ReconnectionService {
     this.disconnectedPlayers.delete(username);
   }
 
-  // Cleanup interval - remove stale disconnected players
+  // Remove stale disconnected players
   startCleanupInterval() {
     setInterval(() => {
       const now = Date.now();
@@ -149,7 +146,6 @@ export class ReconnectionService {
     }, 5000); // Check every 5 seconds
   }
 
-  // Check if player is disconnected
   isDisconnected(username) {
     return this.disconnectedPlayers.has(username);
   }

@@ -3,6 +3,7 @@ import { Game } from './Game.js';
 import { store } from '../services/Store.service.js';
 import { GameModel } from '../models/Game.model.js';
 import { LeaderboardModel } from '../models/Leaderboard.model.js';
+import { emitGameEvent } from '../kafka/producer.kafka.js';
 
 export class GameService {
   constructor(wsHandler) {
@@ -11,10 +12,23 @@ export class GameService {
 
   // Create a new game
   createGame(player1, player2 = null, isBotGame = false) {
-    const game = new Game(player1, player2, isBotGame);
-    store.addGame(game);
-    return game;
-  }
+  const game = new Game(player1, player2, isBotGame);
+  store.addGame(game);
+
+  // KAFKA EVENT: GAME_STARTED
+  emitGameEvent('GAME_STARTED', {
+    gameId: game.id,
+    players: [
+      player1.username,
+      player2?.username || 'Bot'
+    ],
+    isBotGame,
+    startedAt: Date.now()
+  }).catch(console.error);
+
+  return game;
+}
+
 
   // Process a move
   processMove(gameId, username, column) {
@@ -40,10 +54,19 @@ export class GameService {
       return result;
     }
 
+    // After a successful move
+    emitGameEvent('MOVE_MADE', {
+      gameId,
+      player: username,
+      column,
+      moveNumber: game.moveCount,
+      currentPlayer: playerNumber,
+      timestamp: Date.now()
+    }).catch(console.error);
+
     this.broadcastGameUpdate(game);
 
     if (result.win || result.draw) {
-      // Handle game end asynchronously (don't block the response)
       this.handleGameEnd(game, result).catch(err => {
         console.error('Error in handleGameEnd:', err);
       });
@@ -54,16 +77,14 @@ export class GameService {
 
   broadcastGameUpdate(game) {
     const state = game.getState();
-    console.log(`📤 Broadcasting GAME_UPDATE for game ${game.id}, status: ${state.status}, currentPlayer: ${state.currentPlayer}`);
+    console.log(`Broadcasting GAME_UPDATE for game ${game.id}, status: ${state.status}, currentPlayer: ${state.currentPlayer}`);
     
-    // Try to get fresh WebSocket from store if current one is closed
     let player1Ws = game.player1?.ws;
     if (game.player1 && (!player1Ws || player1Ws.readyState !== 1)) {
       const storedWs = store.getConnection(game.player1.username);
       if (storedWs && storedWs.readyState === 1) {
         player1Ws = storedWs;
         game.player1.ws = storedWs; // Update game's WebSocket reference
-        console.log(`   → Using stored WebSocket for player1`);
       }
     }
     
@@ -73,10 +94,7 @@ export class GameService {
         yourPlayer: 1,
         opponent: game.player2?.username || 'Bot'
       };
-      console.log(`   → Sending to player1 (${game.player1.username})`);
       this.wsHandler.send(player1Ws, 'GAME_UPDATE', player1State);
-    } else {
-      console.log(`   → Player1 WebSocket not available (readyState: ${game.player1?.ws?.readyState || 'null'})`);
     }
 
     if (game.player2 && game.player2.ws && game.player2.ws.readyState === 1) {
@@ -89,13 +107,25 @@ export class GameService {
       this.wsHandler.send(game.player2.ws, 'GAME_UPDATE', player2State);
     } else if (game.player2 && game.player2.username === 'Bot') {
       // Bot doesn't need WebSocket
-    } else {
-      console.log(`   → Player2 WebSocket not available`);
     }
   }
 
   // Game end
   async handleGameEnd(game, result) {
+    //KAFKA EVENT: GAME_ENDED
+    emitGameEvent('GAME_ENDED', {
+      gameId: game.id,
+      winner: result.win
+        ? (result.winner === 'player1'
+            ? game.player1?.username
+            : game.player2?.username)
+        : 'draw',
+      isDraw: result.draw,
+      totalMoves: game.moveCount,
+      durationMs: Date.now() - game.startedAt,
+      endedAt: Date.now()
+    }).catch(console.error);
+
     const state = game.getState();
 
     // Send game over message
@@ -133,7 +163,6 @@ export class GameService {
       }
     } catch (error) {
       console.error('Error saving game to database:', error);
-      // Don't throw - game already ended, just log the error
     }
   }
 
